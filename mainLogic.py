@@ -1,15 +1,8 @@
 import minescript as ms
 import sys
+import math
 
 
-
-"""
-TODO: 
-    Need to be able to spawn a grid of blocks based on user input:
-        - Input: "5x6"
-        - Output: Grid of 5x6 blocks
-
-"""
 
 
 
@@ -33,7 +26,11 @@ def main(args):
     for i in range(widthArg):
         for j in range(lengthArg):
             ms.execute(f"setblock {startX + i} {y + 1} {startZ + j} minecraft:stone")
-    
+
+    # Calculated total area and cube root to obtain the total room
+    totalRooms = math.floor((lengthArg * widthArg) ** (1 / 3) )
+
+    # ms.echo(f"totalRooms is {totalRooms}")
     
 
 
