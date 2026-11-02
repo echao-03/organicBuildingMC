@@ -1,11 +1,17 @@
 import minescript as ms
 import sys
 import math
+import random
+from helperFunc import initPlacement
 
 
-
-
-
+"""
+ Main organic building template:
+            - Inital room placements [done]
+            - Room growth
+            - Door placements
+    
+"""
 
 def main(args):
     
@@ -14,7 +20,7 @@ def main(args):
     widthArg = int(args[1])
     
     # Grabs current cursor target from raycasting
-    cursorTarget = ms.player_get_targeted_block(max_distance=20)
+    cursorTarget = ms.player_get_targeted_block(max_distance=50)
         
     ms.echo(cursorTarget[0])
     x, y, z = cursorTarget[0]
@@ -29,6 +35,11 @@ def main(args):
 
     # Calculated total area and cube root to obtain the total room
     totalRooms = math.floor((lengthArg * widthArg) ** (1 / 3) )
+    
+    roomLocations = initPlacement(totalRooms, lengthArg, widthArg, startX, y, startZ) 
+    
+   
+    
 
     # ms.echo(f"totalRooms is {totalRooms}")
     
