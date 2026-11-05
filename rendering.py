@@ -15,12 +15,6 @@ def _door_facing(building: Building, x: int, z: int) -> str:
 
 
 def _block_at(building: Building, x: int, y: int, z: int) -> str:
-    """Resolve one local block for both renderers; foundation is at y=-1.
-
-    Room IDs are visualized as oak markers at y=0, as in the original script.
-    WALL cells default to wood unless a column supplies their materials.
-    DOOR cells become closed oak doors with matching lower and upper halves.
-    """
     if y == -1:
         return "stone"
     cell = building.floorplan.get_cell(x, z)
