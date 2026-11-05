@@ -1,50 +1,47 @@
-import minescript as ms
-import sys
+"""Generate room seeds, then render them in Minecraft or locally."""
+
+import argparse
 import math
-import random
+
 from helperFunc import initPlacement
+from models import Building
+from rendering import render_minecraft, pretty_print_building, pretty_print_floorplan
 
 
-"""
- Main organic building template:
-            - Inital room placements [done]
-            - Room growth
-            - Door placements
-    
-"""
+def main(args=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('length', type=int)
+    parser.add_argument('width', type=int)
+    parser.add_argument('--height', type=int, default=4)
+    parser.add_argument('--debug', action='store_true', help='Print locally without Minecraft')
+    options = parser.parse_args(args)
+    if options.length < 2 or options.width < 2 or options.height < 1:
+        parser.error('Length and width must be at least 2; height must be positive')
 
-def main(args):
-    
-    # Taking argument as {number} x {number} grid
-    lengthArg = int(args[0])
-    widthArg = int(args[1])
-    
-    # Grabs current cursor target from raycasting
-    cursorTarget = ms.player_get_targeted_block(max_distance=50)
-        
-    ms.echo(cursorTarget[0])
-    x, y, z = cursorTarget[0]
-    
-    startX = x - (widthArg // 2)
-    startZ = z - (lengthArg // 2)
-    
-    
-    for i in range(widthArg):
-        for j in range(lengthArg):
-            ms.execute(f"setblock {startX + i} {y + 1} {startZ + j} minecraft:stone")
+    if options.debug:
+        origin = (0, 0, 0)
+    else:
+        # Only world-position selection depends on Minecraft here.
+        import minescript as ms
 
-    # Calculated total area and cube root to obtain the total room
-    totalRooms = math.floor((lengthArg * widthArg) ** (1 / 3) )
-    
-    roomLocations = initPlacement(totalRooms, lengthArg, widthArg, startX, y, startZ) 
-    
-   
-    
+        target = ms.player_get_targeted_block(max_distance=50)
+        if target is None:
+            ms.echo('Look at a nearby ground block first.')
+            return
+        x, y, z = target.position if hasattr(target, 'position') else target[0]
+        origin = (x - options.width // 2, y + 2, z - options.length // 2)
 
-    # ms.echo(f"totalRooms is {totalRooms}")
-    
+    building = Building(origin, options.width, options.length, options.height)
+    totalRooms = math.floor((options.length * options.width) ** (1 / 3))
+    initPlacement(building.floorplan, totalRooms)
+
+    if options.debug:
+        pretty_print_floorplan(building.floorplan)
+        print()
+        pretty_print_building(building)
+    else:
+        render_minecraft(building)
 
 
-if __name__ == "__main__":
-    main(sys.argv[1:])
-
+if __name__ == '__main__':
+    main()

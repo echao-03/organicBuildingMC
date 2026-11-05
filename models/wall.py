@@ -1,7 +1,7 @@
 class WallColumn:
     """A vertical column of wall blocks, stored bottom-to-top as cells[y].
 
-    Building.walls supplies the column's local (x, z) position.
+    Building.wall_columns supplies the column's local (x, z) position.
     Y is a local height offset. Columns can form interior or exterior walls.
 
     We store wall columns to more easily represent rooms which are not rectangular.

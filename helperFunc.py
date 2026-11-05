@@ -1,24 +1,33 @@
-import sys
-import math
 import random
-import minescript as ms
+from typing import TYPE_CHECKING
 
-# Function to check if blocks adjacent to initial placements exist
-def hasRoomConflict(roomBlocks, occupiedBlocks):
-        for x, y, z in roomBlocks:
-            if (x, y, z) in occupiedBlocks:
-                return True
+if TYPE_CHECKING:
+    from models.floorplan import Floorplan
 
-            adjacentBlocks = (
-                (x + 1, y, z),
-                (x - 1, y, z),
-                (x, y, z + 1),
-                (x, y, z - 1),
-            )
-            if occupiedBlocks.intersection(adjacentBlocks):
-                return True
+def hasRoomConflict(floorplan: "Floorplan", roomBlocks: list[tuple[int, int]]) -> bool:
+    """Check local (x, z) candidates for occupied cells or adjacent rooms.
+    """
+    for x, z in roomBlocks:
+        if not (0 <= x < floorplan.width and 0 <= z < floorplan.length):
+            return True
+        if floorplan.get_cell(x, z) is not floorplan.UNASSIGNED:
+            return True
 
-        return False
+        adjacentBlocks = (
+            (x + 1, z),
+            (x - 1, z),
+            (x, z + 1),
+            (x, z - 1),
+        )
+
+        # Check for adjoining rooms
+        for adjacentX, adjacentZ in adjacentBlocks:
+            if 0 <= adjacentX < floorplan.width and 0 <= adjacentZ < floorplan.length:
+                value = floorplan.get_cell(adjacentX, adjacentZ)
+                if value is not None and value >= 0:
+                    return True
+
+    return False
     
 
     
@@ -27,72 +36,58 @@ def hasRoomConflict(roomBlocks, occupiedBlocks):
     
 """
 
-# Initalizes placement of rooms to start room growth
-# Returns a key:value dictionary
-    # Key: Room number
-    # Value: list of initial coordinates of a room
-def initPlacement(totalRooms, length, width, startX, foundationY, startZ):
-    
-    # 
-    roomDict = {}
-    occupiedBlocks = set()
+def initPlacement(floorplan: "Floorplan", totalRooms: int) -> None:
+    """Place initial 2x2 room seeds along a floorplan's perimeter in place.
 
+    Room IDs run from 0 to totalRooms - 1; call before adding other rooms.
+    If space runs out, raise ValueError and leave already placed seeds intact.
+    """
     if totalRooms <= 0:
-        return roomDict
+        return
+
+    length = floorplan.length
+    width = floorplan.width
     if length < 2 or width < 2:
         raise ValueError("The foundation must be at least 2x2 blocks")
 
-
     for i in range(totalRooms):
-        # Keep list of available rooms to randomly choose
         availableRooms = []
-        
+
         for side in ("top", "bottom"):
             for offset in range(width - 1):
-                originX = startX + offset
+                originX = offset
                 if side == "top":
-                    originZ = startZ 
+                    originZ = 0
                 else:
-                    originZ = startZ + length - 2
+                    originZ = length - 2
                 roomBlocks = [
-                    (originX, foundationY, originZ),
-                    (originX + 1, foundationY, originZ),
-                    (originX, foundationY, originZ + 1),
-                    (originX + 1, foundationY, originZ + 1),
+                    (originX, originZ),
+                    (originX + 1, originZ),
+                    (originX, originZ + 1),
+                    (originX + 1, originZ + 1),
                 ]
-                if not hasRoomConflict(roomBlocks, occupiedBlocks):
+                if not hasRoomConflict(floorplan, roomBlocks):
                     availableRooms.append(roomBlocks)
 
         for side in ("left", "right"):
             for offset in range(length - 1):
                 if side == "left":
-                    originX = startX 
+                    originX = 0
                 else:
-                    originX = startX + width - 2
-                originZ = startZ + offset
+                    originX = width - 2
+                originZ = offset
                 roomBlocks = [
-                    (originX, foundationY, originZ),
-                    (originX + 1, foundationY, originZ),
-                    (originX, foundationY, originZ + 1),
-                    (originX + 1, foundationY, originZ + 1),
+                    (originX, originZ),
+                    (originX + 1, originZ),
+                    (originX, originZ + 1),
+                    (originX + 1, originZ + 1),
                 ]
-                if not hasRoomConflict(roomBlocks, occupiedBlocks):
+                if not hasRoomConflict(floorplan, roomBlocks):
                     availableRooms.append(roomBlocks)
 
         if not availableRooms:
             raise ValueError("Not enough room for non-overlapping 2x2 rooms")
 
         roomBlocks = random.choice(availableRooms)
-        roomDict[i] = roomBlocks
-        
-        # Add block coordinates to occupied blocks so it doesn't choose room placement
-        occupiedBlocks.update(roomBlocks)
-        
-    
-    # To check inital placements visually in the world    
-    for v in roomDict.values():
-        for x, y, z in v:
-            ms.execute(f"setblock {x} {y + 2} {z} minecraft:oak_wood")
-
-
-    return roomDict
+        for x, z in roomBlocks:
+            floorplan.set_cell(x, z, i)

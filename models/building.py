@@ -1,5 +1,5 @@
 from .floorplan import Floorplan
-from .wall import Wall
+from .wall import WallColumn
 
 
 class Building:
@@ -20,4 +20,4 @@ class Building:
         # Represents the bottom-most slice of the building.
         self.floorplan = Floorplan(width, length)
         # Store the wall as columns, since rooms are not rectangular.
-        self.wall_columns: dict[tuple[int, int], Wall] = {}
+        self.wall_columns: dict[tuple[int, int], WallColumn] = {}

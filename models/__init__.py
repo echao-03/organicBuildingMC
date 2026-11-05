@@ -2,6 +2,6 @@
 
 from .building import Building
 from .floorplan import Floorplan
-from .wall import Wall
+from .wall import WallColumn
 
-__all__ = ["Building", "Floorplan", "Wall"]
+__all__ = ["Building", "Floorplan", "WallColumn"]
