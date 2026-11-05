@@ -158,7 +158,7 @@ def getGrowthCandidates(
     return candidates
 
 
-def growRooms(floorplan: "Floorplan") -> None:
+def growRooms(floorplan: "Floorplan", showGrowth: bool = False) -> None:
     roomIds = sorted(
         {
             cell
@@ -167,6 +167,11 @@ def growRooms(floorplan: "Floorplan") -> None:
             if cell is not None and cell >= 0
         }
     )
+    rounds = 0
+
+    if showGrowth:
+        print("\nRound 0: initial seeds")
+        floorplan.pretty_print()
 
     while True:
         random.shuffle(roomIds)
@@ -181,4 +186,12 @@ def growRooms(floorplan: "Floorplan") -> None:
                 grew = True
 
         if not grew:
+            if showGrowth:
+                print(f"\nGrowth finished after {rounds} growth rounds.")
             return
+
+        rounds += 1
+
+        if showGrowth:
+            print(f"\nRound {rounds}")
+            floorplan.pretty_print()

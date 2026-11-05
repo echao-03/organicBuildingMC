@@ -36,7 +36,7 @@ def main(args=None):
     building = Building(origin, options.width, options.length, options.height)
     totalRooms = round((options.length * options.width) ** (1 / 3))
     initPlacement(building.floorplan, totalRooms)
-    growRooms(building.floorplan)
+    growRooms(building.floorplan, showGrowth=options.debug)
 
     if options.debug:
         pretty_print_floorplan(building.floorplan)
