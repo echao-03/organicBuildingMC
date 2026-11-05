@@ -32,7 +32,7 @@ def main(args=None):
         origin = (x - options.width // 2, y + 2, z - options.length // 2)
 
     building = Building(origin, options.width, options.length, options.height)
-    totalRooms = math.floor((options.length * options.width) ** (1 / 3))
+    totalRooms = round((options.length * options.width) ** (1 / 3))
     initPlacement(building.floorplan, totalRooms)
 
     if options.debug:
