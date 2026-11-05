@@ -4,9 +4,9 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from models.floorplan import Floorplan
 
+
 def hasRoomConflict(floorplan: "Floorplan", roomBlocks: list[tuple[int, int]]) -> bool:
-    """Check local (x, z) candidates for occupied cells or adjacent rooms.
-    """
+    """Check local (x, z) candidates for occupied cells or adjacent rooms."""
     for x, z in roomBlocks:
         if not (0 <= x < floorplan.width and 0 <= z < floorplan.length):
             return True
@@ -28,13 +28,36 @@ def hasRoomConflict(floorplan: "Floorplan", roomBlocks: list[tuple[int, int]]) -
                     return True
 
     return False
-    
 
-    
-"""Current peeves: 
-    - Random choice sometimes lead room placements to clump to one side, might need to have weighted distribution?
-    
-"""
+
+def chooseRoomSeed(
+    availableRooms: list[list[tuple[int, int]]],
+    placedOrigins: list[tuple[int, int]],
+) -> list[tuple[int, int]]:
+    if not availableRooms:
+        raise ValueError("Not enough room for non-overlapping 2x2 rooms")
+
+    if not placedOrigins:
+        return random.choice(availableRooms)
+
+    def distanceToNearestRoom(candidates: list[tuple[int, int]]) -> int:
+        x, z = candidates[0]
+        return min(
+            (x - placedX) ** 2 + (z - placedZ) ** 2
+            for placedX, placedZ in placedOrigins
+        )
+
+    distances = [distanceToNearestRoom(candidates) for candidates in availableRooms]
+    bestDistance = max(distances)
+
+    bestCandidates = [
+        candidate
+        for candidate, distance in zip(availableRooms, distances)
+        if distance == bestDistance
+    ]
+
+    return random.choice(bestCandidates)
+
 
 def initPlacement(floorplan: "Floorplan", totalRooms: int) -> None:
     """Place initial 2x2 room seeds along a floorplan's perimeter in place.
@@ -49,6 +72,8 @@ def initPlacement(floorplan: "Floorplan", totalRooms: int) -> None:
     width = floorplan.width
     if length < 2 or width < 2:
         raise ValueError("The foundation must be at least 2x2 blocks")
+
+    placedOrigins: list[tuple[int, int]] = []
 
     for i in range(totalRooms):
         availableRooms = []
@@ -66,7 +91,9 @@ def initPlacement(floorplan: "Floorplan", totalRooms: int) -> None:
                     (originX, originZ + 1),
                     (originX + 1, originZ + 1),
                 ]
-                if not hasRoomConflict(floorplan, roomBlocks):
+                if roomBlocks not in availableRooms and not hasRoomConflict(
+                    floorplan, roomBlocks
+                ):
                     availableRooms.append(roomBlocks)
 
         for side in ("left", "right"):
@@ -82,12 +109,16 @@ def initPlacement(floorplan: "Floorplan", totalRooms: int) -> None:
                     (originX, originZ + 1),
                     (originX + 1, originZ + 1),
                 ]
-                if not hasRoomConflict(floorplan, roomBlocks):
+                if roomBlocks not in availableRooms and not hasRoomConflict(
+                    floorplan, roomBlocks
+                ):
                     availableRooms.append(roomBlocks)
 
         if not availableRooms:
-            raise ValueError("Not enough room for non-overlapping 2x2 rooms")
+            break
 
-        roomBlocks = random.choice(availableRooms)
+        roomBlocks = chooseRoomSeed(availableRooms, placedOrigins)
         for x, z in roomBlocks:
             floorplan.set_cell(x, z, i)
+
+        placedOrigins.append(roomBlocks[0])
