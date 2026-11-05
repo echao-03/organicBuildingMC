@@ -1,4 +1,5 @@
 import random
+from types import CellType
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -122,3 +123,62 @@ def initPlacement(floorplan: "Floorplan", totalRooms: int) -> None:
             floorplan.set_cell(x, z, i)
 
         placedOrigins.append(roomBlocks[0])
+
+
+def getGrowthCandidates(
+    floorplan: "Floorplan",
+    roomId: int,
+) -> list[tuple[int, int]]:
+
+    candidates = []
+
+    for x in range(floorplan.width):
+        for z in range(floorplan.length):
+            if floorplan.get_cell(x, z) is not floorplan.UNASSIGNED:
+                continue
+
+            adjacentRooms = set()
+
+            for dx, dz in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                adjacentX = x + dx
+                adjacentZ = z + dz
+
+                if (
+                    0 <= adjacentX < floorplan.width
+                    and 0 <= adjacentZ < floorplan.length
+                ):
+                    value = floorplan.get_cell(adjacentX, adjacentZ)
+
+                    if value is not None and value >= 0:
+                        adjacentRooms.add(value)
+
+            if adjacentRooms == {roomId}:
+                candidates.append((x, z))
+
+    return candidates
+
+
+def growRooms(floorplan: "Floorplan") -> None:
+    roomIds = sorted(
+        {
+            cell
+            for column in floorplan.cells
+            for cell in column
+            if cell is not None and cell >= 0
+        }
+    )
+
+    while True:
+        random.shuffle(roomIds)
+        grew = False
+
+        for roomId in roomIds:
+            candidates = getGrowthCandidates(floorplan, roomId)
+
+            if candidates:
+                x, z = random.choice(candidates)
+                floorplan.set_cell(x, z, roomId)
+                grew = True
+
+        if not grew:
+            return
