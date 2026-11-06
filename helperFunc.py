@@ -195,3 +195,37 @@ def growRooms(floorplan: "Floorplan", showGrowth: bool = False) -> None:
         if showGrowth:
             print(f"\nRound {rounds}")
             floorplan.pretty_print()
+
+
+"""
+Need to determine how many doors can be placed in the house
+1. Get totalRoom integer, use random.randint between (1 - totalRoom)
+2. Obtain valid tiles that doesn't have an ID of a room
+3. Add walls to valid tiles
+    Once obtain all valid tiles, begin loop through range(random.randint(1 - totalRoom))
+        Pick random valid tile, and obtain adjacency IDs from current tile
+        Conditions:
+            - If tile is next to external wall,
+                - If there is a wall next to door placement, then proceed with placing door
+                - If no wall, place wall adjacent from external wall 
+            - If tile is away from external wall, 
+            
+"""
+
+
+def internWallPlacement(floorplan: "Floorplan") -> None:
+    for x in range(floorplan.width):
+        for z in range(floorplan.length):
+            cell = floorplan.get_cell(x, z)
+            if cell is None:
+                floorplan.set_cell(x, z, -1)
+
+
+# def internDoorPlacement(floorplan: "Floorplan", totalRooms: int) -> None:
+#     # If the total house only has one room, no need for internal doors
+#     if totalRooms == 1:
+#         return
+
+#     totalDoors = random.randint(1, totalRooms)
+
+#     for door in range(totalDoors):

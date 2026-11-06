@@ -3,7 +3,7 @@
 import argparse
 import math
 
-from helperFunc import initPlacement, growRooms
+from helperFunc import initPlacement, growRooms, internWallPlacement
 from models import Building
 from rendering import render_minecraft, pretty_print_building, pretty_print_floorplan
 
@@ -37,6 +37,8 @@ def main(args=None):
     totalRooms = round((options.length * options.width) ** (1 / 3))
     initPlacement(building.floorplan, totalRooms)
     growRooms(building.floorplan, showGrowth=options.debug)
+
+    internWallPlacement(building.floorplan)
 
     if options.debug:
         pretty_print_floorplan(building.floorplan)
