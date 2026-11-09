@@ -73,7 +73,13 @@ def render_minecraft(building: Building) -> None:
 
 def pretty_print_building(building: Building) -> None:
     """Print physical layers bottom-to-top, with X rightward and Z downward."""
-    symbols = {"air": ".", "stone": "S", "oak_wood": "W", "glass": "G", "oak_door": "D"}
+    symbols = {
+        "air": ".",
+        "oak_planks": "W",
+        "spruce_planks": "F",
+        "glass": "G",
+        "oak_door": "D",
+    }
     for y in range(-1, building.height):
         label = "Foundation" if y == -1 else f"Layer {y}"
         print(f"{label} (world Y={building.origin[1] + y})")
