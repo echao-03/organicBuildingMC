@@ -199,22 +199,6 @@ def growRooms(floorplan: "Floorplan", showGrowth: bool = False) -> None:
             floorplan.pretty_print()
 
 
-"""
-Need to determine how many doors can be placed in the house
-1. Get totalRoom integer, use random.randint between (1 - totalRoom)
-2. Obtain valid tiles that doesn't have an ID of a room
-3. Add walls to valid tiles
-    Once obtain all valid tiles, begin loop through range(random.randint(1 - totalRoom))
-        Pick random valid tile, and obtain adjacency IDs from current tile
-        Conditions:
-            - If tile is next to external wall,
-                - If there is a wall next to door placement, then proceed with placing door
-                - If no wall, place wall adjacent from external wall 
-            - If tile is away from external wall, 
-            
-"""
-
-
 def internWallPlacement(floorplan: "Floorplan") -> None:
     for x in range(floorplan.width):
         for z in range(floorplan.length):
@@ -223,6 +207,9 @@ def internWallPlacement(floorplan: "Floorplan") -> None:
                 floorplan.set_cell(x, z, -1)
 
 
+# Current get_door_candidates is only obtaining valid placements from walls that are straight
+# Diagonal placement of walls cannot be considered as candidates, which hinders possible door placements
+# Can be solved in internDoorPlacement() by just adding walls adjacent to doors
 def get_door_candidates(floorplan: "Floorplan"):
     candidates = []
 
@@ -289,11 +276,7 @@ def internDoorPlacement(floorplan: "Floorplan", totalRooms: int) -> None:
     if totalRooms == 1:
         return
 
-    connectedRooms = set()
-
     grouped_candidates = group_door_candidates(floorplan)
-
-    placement_groups = list(grouped_candidates.values())
 
     # Initial door placements, makes sure that every rooms are connected once
     for room_pair, placements in grouped_candidates.items():
@@ -306,9 +289,56 @@ def internDoorPlacement(floorplan: "Floorplan", totalRooms: int) -> None:
     # Add extra doors and randomly choose any from grouped_candidates
 
     doorExtras = random.randint(1, totalRooms - 1)
+    print("doorExtras:", doorExtras)
     for _ in range(doorExtras):
         room_pair, placements = random.choice(list(grouped_candidates.items()))
+        print("a room_pair:", room_pair, "a placements:", placements)
+        if len(placements) == 0:
+            continue
         coordinates, room_a, room_b = random.choice(placements)
         x, z = coordinates
         floorplan.set_cell(x, z, floorplan.DOOR)
         grouped_candidates[room_pair].remove((coordinates, room_a, room_b))
+
+    # Final check of all doors and add walls if necessary
+    for x in range(1, floorplan.width - 1):
+        for z in range(1, floorplan.length - 1):
+
+            if floorplan.get_cell(x, z) == floorplan.DOOR:
+                left = floorplan.get_cell(x - 1, z)
+                right = floorplan.get_cell(x + 1, z)
+                above = floorplan.get_cell(x, z - 1)
+                below = floorplan.get_cell(x, z + 1)
+
+                # If left and right are rooms, check above and below for walls and doors
+                if (
+                    isinstance(left, int)
+                    and left >= 0
+                    and isinstance(right, int)
+                    and right >= 0
+                ):
+                    if isinstance(above, int) and (
+                        above == floorplan.WALL or above == floorplan.DOOR
+                    ):
+                        floorplan.set_cell(x, z + 1, floorplan.WALL)
+
+                    if isinstance(below, int) and (
+                        below == floorplan.WALL or below == floorplan.DOOR
+                    ):
+                        floorplan.set_cell(x, z - 1, floorplan.WALL)
+                if (
+                    isinstance(above, int)
+                    and above >= 0
+                    and isinstance(below, int)
+                    and below >= 0
+                ):
+
+                    if isinstance(left, int) and (
+                        left == floorplan.WALL or left == floorplan.DOOR
+                    ):
+                        floorplan.set_cell(x + 1, z, floorplan.WALL)
+
+                    if isinstance(right, int) and (
+                        right == floorplan.WALL or right == floorplan.DOOR
+                    ):
+                        floorplan.set_cell(x - 1, z, floorplan.WALL)
