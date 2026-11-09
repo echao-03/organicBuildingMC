@@ -304,10 +304,8 @@ def internDoorPlacement(floorplan: "Floorplan", totalRooms: int) -> None:
     # Add extra doors and randomly choose any from grouped_candidates
 
     doorExtras = random.randint(1, totalRooms - 1)
-    print("doorExtras:", doorExtras)
     for _ in range(doorExtras):
         room_pair, placements = random.choice(list(grouped_candidates.items()))
-        print("a room_pair:", room_pair, "a placements:", placements)
         if len(placements) == 0:
             continue
         coordinates, room_a, room_b = random.choice(placements)
@@ -341,6 +339,7 @@ def internDoorPlacement(floorplan: "Floorplan", totalRooms: int) -> None:
                         below == floorplan.WALL or below == floorplan.DOOR
                     ):
                         floorplan.set_cell(x, z - 1, floorplan.WALL)
+                # If above and below are rooms, check left and right for walls and doors
                 if (
                     isinstance(above, int)
                     and above >= 0
