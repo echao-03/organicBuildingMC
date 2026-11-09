@@ -207,9 +207,10 @@ def internWallPlacement(floorplan: "Floorplan") -> None:
                 floorplan.set_cell(x, z, -1)
 
 
-# Current get_door_candidates is only obtaining valid placements from walls that are straight
-# Diagonal placement of walls cannot be considered as candidates, which hinders possible door placements
-# Can be solved in internDoorPlacement() by just adding walls adjacent to doors
+def is_room(value) -> bool:
+    return isinstance(value, int) and value >= 0
+
+
 def get_door_candidates(floorplan: "Floorplan"):
     candidates = []
 
@@ -253,6 +254,20 @@ def get_door_candidates(floorplan: "Floorplan"):
                 and any(value == floorplan.WALL for value in side_walls)
             ):
                 candidates.append(((x, z), above, below))
+
+            # Door dividing rooms diagonally: northwest/southeast.
+            northwest = floorplan.get_cell(x - 1, z - 1)
+            southeast = floorplan.get_cell(x + 1, z + 1)
+
+            if is_room(northwest) and is_room(southeast) and northwest != southeast:
+                candidates.append(((x, z), northwest, southeast))
+
+            # Door dividing rooms diagonally: northeast/southwest.
+            northeast = floorplan.get_cell(x + 1, z - 1)
+            southwest = floorplan.get_cell(x - 1, z + 1)
+
+            if is_room(northeast) and is_room(southwest) and northeast != southwest:
+                candidates.append(((x, z), northeast, southwest))
 
     return candidates
 
