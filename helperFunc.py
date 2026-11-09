@@ -1,6 +1,8 @@
 import random
 from types import CellType
 from typing import TYPE_CHECKING
+from collections import defaultdict
+from typing import DefaultDict
 
 if TYPE_CHECKING:
     from models.floorplan import Floorplan
@@ -221,11 +223,92 @@ def internWallPlacement(floorplan: "Floorplan") -> None:
                 floorplan.set_cell(x, z, -1)
 
 
-# def internDoorPlacement(floorplan: "Floorplan", totalRooms: int) -> None:
-#     # If the total house only has one room, no need for internal doors
-#     if totalRooms == 1:
-#         return
+def get_door_candidates(floorplan: "Floorplan"):
+    candidates = []
 
-#     totalDoors = random.randint(1, totalRooms)
+    for x in range(1, floorplan.width - 1):
+        for z in range(1, floorplan.length - 1):
+            if floorplan.get_cell(x, z) != floorplan.WALL:
+                continue
 
-#     for door in range(totalDoors):
+            # Door dividing rooms left/right.
+            left = floorplan.get_cell(x - 1, z)
+            right = floorplan.get_cell(x + 1, z)
+            side_walls = (
+                floorplan.get_cell(x, z - 1),
+                floorplan.get_cell(x, z + 1),
+            )
+
+            if (
+                isinstance(left, int)
+                and left >= 0
+                and isinstance(right, int)
+                and right >= 0
+                and left != right
+                and any(value == floorplan.WALL for value in side_walls)
+            ):
+                candidates.append(((x, z), left, right))
+
+            # Door dividing rooms up/down.
+            above = floorplan.get_cell(x, z - 1)
+            below = floorplan.get_cell(x, z + 1)
+            side_walls = (
+                floorplan.get_cell(x - 1, z),
+                floorplan.get_cell(x + 1, z),
+            )
+
+            if (
+                isinstance(above, int)
+                and above >= 0
+                and isinstance(below, int)
+                and below >= 0
+                and above != below
+                and any(value == floorplan.WALL for value in side_walls)
+            ):
+                candidates.append(((x, z), above, below))
+
+    return candidates
+
+
+def group_door_candidates(floorplan: "Floorplan"):
+    grouped: DefaultDict[tuple[int, int], list[tuple[tuple[int, int], int, int]]] = (
+        defaultdict(list)
+    )
+
+    for candidate in get_door_candidates(floorplan):
+        coordinates, room_a, room_b = candidate
+        room_pair = tuple(sorted((room_a, room_b)))
+
+        grouped[room_pair].append(candidate)
+
+    return grouped
+
+
+def internDoorPlacement(floorplan: "Floorplan", totalRooms: int) -> None:
+    # If the total house only has one room, no need for internal doors
+    if totalRooms == 1:
+        return
+
+    connectedRooms = set()
+
+    grouped_candidates = group_door_candidates(floorplan)
+
+    placement_groups = list(grouped_candidates.values())
+
+    # Initial door placements, makes sure that every rooms are connected once
+    for room_pair, placements in grouped_candidates.items():
+        print("room_pair:", room_pair, "placements:", placements)
+        coordinates, room_a, room_b = random.choice(placements)
+        x, z = coordinates
+        floorplan.set_cell(x, z, floorplan.DOOR)
+        grouped_candidates[room_pair].remove((coordinates, room_a, room_b))
+
+    # Add extra doors and randomly choose any from grouped_candidates
+
+    doorExtras = random.randint(1, totalRooms - 1)
+    for _ in range(doorExtras):
+        room_pair, placements = random.choice(list(grouped_candidates.items()))
+        coordinates, room_a, room_b = random.choice(placements)
+        x, z = coordinates
+        floorplan.set_cell(x, z, floorplan.DOOR)
+        grouped_candidates[room_pair].remove((coordinates, room_a, room_b))
