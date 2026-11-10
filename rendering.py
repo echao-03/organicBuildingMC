@@ -3,11 +3,13 @@ from models import Building, Floorplan, WallColumn
 
 def _door_facing(building: Building, x: int, z: int) -> str:
     """Face across the wall; ambiguous layouts default to north."""
+
     def is_wall(nx: int, nz: int) -> bool:
         if not (0 <= nx < building.width and 0 <= nz < building.length):
             return False
-        return ((nx, nz) in building.wall_columns or
-                building.floorplan.get_cell(nx, nz) in (Floorplan.WALL, Floorplan.DOOR))
+        return (nx, nz) in building.wall_columns or building.floorplan.get_cell(
+            nx, nz
+        ) in (Floorplan.WALL, Floorplan.DOOR)
 
     along_x = sum(is_wall(nx, z) for nx in (x - 1, x + 1))
     along_z = sum(is_wall(x, nz) for nz in (z - 1, z + 1))
@@ -15,24 +17,28 @@ def _door_facing(building: Building, x: int, z: int) -> str:
 
 
 def _block_at(building: Building, x: int, y: int, z: int) -> str:
+
+    # Foundation base
     if y == -1:
-        return "stone"
+        return "spruce_planks"
     cell = building.floorplan.get_cell(x, z)
     if cell == Floorplan.DOOR and y < 2:
         if building.height < 2:
             raise ValueError("Doors require a building height of at least 2")
         half = "lower" if y == 0 else "upper"
         facing = _door_facing(building, x, z)
-        return f"oak_door[facing={facing},half={half},hinge=left,open=false,powered=false]"
+        return (
+            f"oak_door[facing={facing},half={half},hinge=left,open=false,powered=false]"
+        )
     column = building.wall_columns.get((x, z))
     if column is not None:
         if y >= column.height:
             return "air"
         return {WallColumn.WOOD: "oak_wood", WallColumn.GLASS: "glass"}[column.cells[y]]
+
+    # Wall blocks
     if cell in (Floorplan.WALL, Floorplan.DOOR):
-        return "oak_wood"
-    if cell is not None and cell >= 0 and y == 0:
-        return "oak_wood"
+        return "oak_planks"
     return "air"
 
 
@@ -67,15 +73,23 @@ def render_minecraft(building: Building) -> None:
 
 def pretty_print_building(building: Building) -> None:
     """Print physical layers bottom-to-top, with X rightward and Z downward."""
-    symbols = {"air": ".", "stone": "S", "oak_wood": "W", "glass": "G", "oak_door": "D"}
+    symbols = {
+        "air": ".",
+        "oak_planks": "W",
+        "spruce_planks": "F",
+        "glass": "G",
+        "oak_door": "D",
+    }
     for y in range(-1, building.height):
         label = "Foundation" if y == -1 else f"Layer {y}"
         print(f"{label} (world Y={building.origin[1] + y})")
         for z in range(building.length):
-            print(" ".join(
-                symbols[_block_at(building, x, y, z).split("[", 1)[0]]
-                for x in range(building.width)
-            ))
+            print(
+                " ".join(
+                    symbols[_block_at(building, x, y, z).split("[", 1)[0]]
+                    for x in range(building.width)
+                )
+            )
         print()
     print("Legend: . = air, S = stone, W = wood, G = glass, D = door")
 
