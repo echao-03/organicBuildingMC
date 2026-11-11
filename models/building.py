@@ -21,3 +21,5 @@ class Building:
         self.floorplan = Floorplan(width, length)
         # Store the wall as columns, since rooms are not rectangular.
         self.wall_columns: dict[tuple[int, int], WallColumn] = {}
+        # Obtain coordinates of the external door, and the coordinates outside to determine where the door faces 
+        self.external_door: tuple[tuple[int, int], tuple[int, int]] | None = None

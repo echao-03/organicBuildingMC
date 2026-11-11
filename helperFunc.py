@@ -4,7 +4,10 @@ from typing import TYPE_CHECKING
 from collections import defaultdict
 from typing import DefaultDict
 
+from models.wall import WallColumn
+
 if TYPE_CHECKING:
+    from models.building import Building
     from models.floorplan import Floorplan
 
 
@@ -207,6 +210,86 @@ def internWallPlacement(floorplan: "Floorplan") -> None:
                 floorplan.set_cell(x, z, -1)
 
 
+def _generate_external_wall(height: int, span: int) -> list[WallColumn]:
+    cells = [
+        [
+            WallColumn.GLASS if random.random() < 0.20 else WallColumn.WOOD
+            for _ in range(span)
+        ]
+        for _ in range(height)
+    ]
+
+    # Main loop for cellular automata (range = # of generations)
+    # Increased from 10 generation as per paper, to 30 to ensure all windows are equally dispersed
+    for _ in range(30):
+        next_cells = [[WallColumn.WOOD for _ in range(span)] for _ in range(height)]
+        for y in range(height):
+            for offset in range(span):
+                neighbors = ((0, 0), (1, 0), (-1, 0), (0, 1), (0, -1))
+                total = sum(
+                    cells[y + dy][offset + dx]
+                    for dx, dy in neighbors
+                    if 0 <= y + dy < height and 0 <= offset + dx < span
+                )
+                next_cells[y][offset] = (
+                    WallColumn.GLASS if total in (2, 3) else WallColumn.WOOD
+                ) 
+        cells = next_cells
+
+    columns = []
+    for offset in range(span):
+        column = WallColumn(height)
+        column.cells = [cells[y][offset] for y in range(height)]
+        columns.append(column)
+    return columns
+
+
+def externWallPlacements(building: "Building") -> None:
+    """Generate four cellular-automata walls around a building footprint."""
+    width = building.width
+    length = building.length
+
+    building.wall_columns = {
+        coordinates: column
+        for coordinates, column in building.wall_columns.items()
+        if 0 <= coordinates[0] < width and 0 <= coordinates[1] < length
+    }
+
+    north_wall = _generate_external_wall(building.height + 1, width + 2)
+    south_wall = _generate_external_wall(building.height + 1, width)
+    west_wall = _generate_external_wall(building.height + 1, length)
+    east_wall = _generate_external_wall(building.height + 1, length)
+
+    for offset, column in enumerate(north_wall):
+        building.wall_columns[(offset - 1, -1)] = column
+    for offset, column in enumerate(south_wall):
+        building.wall_columns[(offset, length)] = column
+    for offset, column in enumerate(west_wall):
+        building.wall_columns[(-1, offset)] = column
+    for offset, column in enumerate(east_wall):
+        building.wall_columns[(width, offset)] = column
+
+    if building.external_door is not None:
+        inside, outside = building.external_door
+    else:
+        side, offset = random.choice(
+            [("north", x) for x in range(width)]
+            + [("south", x) for x in range(width)]
+            + [("west", z) for z in range(length)]
+            + [("east", z) for z in range(length)]
+        )
+        if side == "north":
+            inside, outside = (offset, 0), (offset, -1)
+        elif side == "south":
+            inside, outside = (offset, length - 1), (offset, length)
+        elif side == "west":
+            inside, outside = (0, offset), (-1, offset)
+        else:
+            inside, outside = (width - 1, offset), (width, offset)
+
+    building.external_door = (inside, outside)
+
+
 def is_room(value) -> bool:
     return isinstance(value, int) and value >= 0
 
@@ -255,19 +338,19 @@ def get_door_candidates(floorplan: "Floorplan"):
             ):
                 candidates.append(((x, z), above, below))
 
-            # Door dividing rooms diagonally: northwest/southeast.
-            northwest = floorplan.get_cell(x - 1, z - 1)
-            southeast = floorplan.get_cell(x + 1, z + 1)
+            # # Door dividing rooms diagonally: northwest/southeast.
+            # northwest = floorplan.get_cell(x - 1, z - 1)
+            # southeast = floorplan.get_cell(x + 1, z + 1)
 
-            if is_room(northwest) and is_room(southeast) and northwest != southeast:
-                candidates.append(((x, z), northwest, southeast))
+            # if is_room(northwest) and is_room(southeast) and northwest != southeast:
+            #     candidates.append(((x, z), northwest, southeast))
 
-            # Door dividing rooms diagonally: northeast/southwest.
-            northeast = floorplan.get_cell(x + 1, z - 1)
-            southwest = floorplan.get_cell(x - 1, z + 1)
+            # # Door dividing rooms diagonally: northeast/southwest.
+            # northeast = floorplan.get_cell(x + 1, z - 1)
+            # southwest = floorplan.get_cell(x - 1, z + 1)
 
-            if is_room(northeast) and is_room(southwest) and northeast != southwest:
-                candidates.append(((x, z), northeast, southwest))
+            # if is_room(northeast) and is_room(southwest) and northeast != southwest:
+            #     candidates.append(((x, z), northeast, southwest))
 
     return candidates
 

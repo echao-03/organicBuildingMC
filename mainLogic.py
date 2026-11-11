@@ -9,6 +9,7 @@ from helperFunc import (
     internWallPlacement,
     get_door_candidates,
     internDoorPlacement,
+    externWallPlacements,
 )
 from models import Building
 from rendering import render_minecraft, pretty_print_building, pretty_print_floorplan
@@ -47,6 +48,7 @@ def main(args=None):
     internWallPlacement(building.floorplan)
 
     internDoorPlacement(building.floorplan, totalRooms)
+    externWallPlacements(building)
 
     if options.debug:
         pretty_print_floorplan(building.floorplan)
