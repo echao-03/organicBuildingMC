@@ -20,6 +20,9 @@ def _external_door_facing(building: Building, x: int, z: int) -> str | None:
     if building.external_door is None:
         return None
     inside, outside = building.external_door
+
+    # If current coordinate is out of building boundary, it is considered "outside"
+    # We now have the coordinate for door position and direction it faces
     if (x, z) == outside:
         if outside[0] < inside[0]:
             return "east"
@@ -106,11 +109,15 @@ def render_minecraft(building: Building) -> None:
             )
 
 
-def pretty_print_building(building: Building) -> None:
-    """Print physical layers bottom-to-top, with X rightward and Z downward."""
+def pretty_print_building(
+    building: Building,
+    show_growth: bool = False,
+) -> None:
+    """Print physical layers bottom-to-top, including the exterior walls."""
     symbols = {
         "air": ".",
-        "oak_planks": "W", # Wall
+        "oak_planks": "#", # Wall
+        "oak_wood": "#", # External Wall 
         "spruce_planks": "F", # Foundation
         "glass": "G", # Glass
         "oak_door": "D", # Door
@@ -118,15 +125,34 @@ def pretty_print_building(building: Building) -> None:
     for y in range(-1, building.height):
         label = "Foundation" if y == -1 else f"Layer {y}"
         print(f"{label} (world Y={building.origin[1] + y})")
-        for z in range(building.length):
+        for z in range(-1, building.length + 1):
             print(
                 " ".join(
                     symbols[_block_at(building, x, y, z).split("[", 1)[0]]
-                    for x in range(building.width)
+                    for x in range(-1, building.width + 1)
                 )
             )
         print()
-    print("Legend: . = air, S = stone, W = wood, G = glass, D = door")
+    print("Legend: . = air, F = foundation, W = wood, G = glass, D = door")
+
+    # If true, records each round of growth for each wall
+    # Can be used to check how the blocks move for each generation
+    if show_growth:
+        growth_symbols = {WallColumn.WOOD: "W", WallColumn.GLASS: "G"}
+        for wall_name, history in building.wall_generation_history.items():
+            for round_number, (cells, changed_cells) in enumerate(history):
+                details = (
+                    f", changed cells: {changed_cells}"
+                    if changed_cells is not None
+                    else ""
+                )
+                print(
+                    f"\n{wall_name} wall - glass generation round "
+                    f"{round_number}{details}"
+                )
+                for row in cells:
+                    print(" ".join(growth_symbols[cell] for cell in row))
+                print("Legend: W = wood, G = glass")
 
 
 def pretty_print_floorplan(floorplan: Floorplan) -> None:

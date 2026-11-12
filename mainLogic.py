@@ -12,7 +12,11 @@ from helperFunc import (
     externWallPlacements,
 )
 from models import Building
-from rendering import render_minecraft, pretty_print_building, pretty_print_floorplan
+from rendering import (
+    render_minecraft,
+    pretty_print_building,
+    pretty_print_floorplan,
+)
 
 
 def main(args=None):
@@ -23,7 +27,14 @@ def main(args=None):
     parser.add_argument(
         "--debug", action="store_true", help="Print locally without Minecraft"
     )
+    parser.add_argument(
+        "--show-growth",
+        action="store_true",
+        help="Print every exterior-wall glass generation round",
+    )
     options = parser.parse_args(args)
+    if options.show_growth:
+        options.debug = True
     if options.length < 2 or options.width < 2 or options.height < 1:
         parser.error("Length and width must be at least 2; height must be positive")
 
@@ -53,7 +64,7 @@ def main(args=None):
     if options.debug:
         pretty_print_floorplan(building.floorplan)
         print()
-        pretty_print_building(building)
+        pretty_print_building(building, show_growth=options.show_growth)
     else:
         render_minecraft(building)
 
