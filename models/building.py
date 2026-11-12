@@ -21,6 +21,9 @@ class Building:
         self.floorplan = Floorplan(width, length)
         # Store the wall as columns, since rooms are not rectangular.
         self.wall_columns: dict[tuple[int, int], WallColumn] = {}
+        # Initalize dictionary for wall generation history for debug
+        # key: str containing direction of wall ie. "north", "south", etc.
+        # value: tuple of (current wall values where each element contains 0 or 1, integer of amt of cells that were changed)
         self.wall_generation_history: dict[
             str, list[tuple[list[list[int]], int | None]]
         ] = {}
