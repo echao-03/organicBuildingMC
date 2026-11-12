@@ -6,6 +6,14 @@ from typing import DefaultDict
 
 from models.wall import WallColumn
 
+from typing import TypeAlias
+
+# Type alias for readability
+CellGrid: TypeAlias = list[list[int]]
+GenerationRound: TypeAlias = tuple[CellGrid, int | None]
+GenerationHistory: TypeAlias = list[GenerationRound]
+ExternalWallResult: TypeAlias = tuple[list[WallColumn], GenerationHistory]
+
 if TYPE_CHECKING:
     from models.building import Building
     from models.floorplan import Floorplan
@@ -210,18 +218,23 @@ def internWallPlacement(floorplan: "Floorplan") -> None:
                 floorplan.set_cell(x, z, -1)
 
 
-def _generate_external_wall(height: int, span: int) -> list[WallColumn]:
+def _generate_external_wall(
+    height: int,
+    span: int,
+    # Returns a tuple (list, list), list of newly created walls, and history of wall generations
+) -> ExternalWallResult:
     cells = [
         [
-            WallColumn.GLASS if random.random() < 0.20 else WallColumn.WOOD
+            # Change float if you want to change total distribution of glass
+            WallColumn.GLASS if random.random() < 0.25 else WallColumn.WOOD
             for _ in range(span)
         ]
         for _ in range(height)
     ]
+    history = [([row[:] for row in cells], None)]
 
-    # Main loop for cellular automata (range = # of generations)
-    # Increased from 10 generation as per paper, to 30 to ensure all windows are equally dispersed
-    for _ in range(30):
+    # Main loop for cellular automata of glass blocks (range = # of generations)
+    for round_number in range(1, 11):
         next_cells = [[WallColumn.WOOD for _ in range(span)] for _ in range(height)]
         for y in range(height):
             for offset in range(span):
@@ -229,19 +242,26 @@ def _generate_external_wall(height: int, span: int) -> list[WallColumn]:
                 total = sum(
                     cells[y + dy][offset + dx]
                     for dx, dy in neighbors
+                    # Check adjacent neighbor of current block, and if neighbor + current height of block is higher than set building height, then skip
                     if 0 <= y + dy < height and 0 <= offset + dx < span
                 )
                 next_cells[y][offset] = (
                     WallColumn.GLASS if total in (2, 3) else WallColumn.WOOD
-                ) 
+                )
+        changed_cells = sum(
+            cells[y][offset] != next_cells[y][offset]
+            for y in range(height)
+            for offset in range(span)
+        )
         cells = next_cells
+        history.append(([row[:] for row in cells], changed_cells))
 
     columns = []
     for offset in range(span):
         column = WallColumn(height)
         column.cells = [cells[y][offset] for y in range(height)]
         columns.append(column)
-    return columns
+    return columns, history
 
 
 def externWallPlacements(building: "Building") -> None:
@@ -255,10 +275,17 @@ def externWallPlacements(building: "Building") -> None:
         if 0 <= coordinates[0] < width and 0 <= coordinates[1] < length
     }
 
-    north_wall = _generate_external_wall(building.height + 1, width + 2)
-    south_wall = _generate_external_wall(building.height + 1, width)
-    west_wall = _generate_external_wall(building.height + 1, length)
-    east_wall = _generate_external_wall(building.height + 1, length)
+    # obtain arrays of the wall, as well as another array for past wall generations
+    north_wall, north_history = _generate_external_wall(building.height + 1, width + 2)
+    south_wall, south_history = _generate_external_wall(building.height + 1, width)
+    west_wall, west_history = _generate_external_wall(building.height + 1, length + 1)
+    east_wall, east_history = _generate_external_wall(building.height + 1, length + 1)
+    building.wall_generation_history = {
+        "North": north_history,
+        "South": south_history,
+        "West": west_history,
+        "East": east_history,
+    }
 
     for offset, column in enumerate(north_wall):
         building.wall_columns[(offset - 1, -1)] = column
@@ -269,8 +296,10 @@ def externWallPlacements(building: "Building") -> None:
     for offset, column in enumerate(east_wall):
         building.wall_columns[(width, offset)] = column
 
+    # If door is already implemented, then continue
     if building.external_door is not None:
         inside, outside = building.external_door
+    # Randomly choose which side to install a door
     else:
         side, offset = random.choice(
             [("north", x) for x in range(width)]
