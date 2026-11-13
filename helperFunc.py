@@ -366,6 +366,7 @@ def get_door_candidates(floorplan: "Floorplan"):
                 and any(value == floorplan.WALL for value in side_walls)
             ):
                 candidates.append(((x, z), above, below))
+                
 
             # # Door dividing rooms diagonally: northwest/southeast.
             # northwest = floorplan.get_cell(x - 1, z - 1)
