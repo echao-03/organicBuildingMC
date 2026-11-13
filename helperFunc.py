@@ -4,7 +4,18 @@ from typing import TYPE_CHECKING
 from collections import defaultdict
 from typing import DefaultDict
 
+from models.wall import WallColumn
+
+from typing import TypeAlias
+
+# Type alias for readability
+CellGrid: TypeAlias = list[list[int]]
+GenerationRound: TypeAlias = tuple[CellGrid, int | None]
+GenerationHistory: TypeAlias = list[GenerationRound]
+ExternalWallResult: TypeAlias = tuple[list[WallColumn], GenerationHistory]
+
 if TYPE_CHECKING:
+    from models.building import Building
     from models.floorplan import Floorplan
 
 
@@ -207,6 +218,107 @@ def internWallPlacement(floorplan: "Floorplan") -> None:
                 floorplan.set_cell(x, z, -1)
 
 
+def _generate_external_wall(
+    height: int,
+    span: int,
+    # Returns a tuple (list, list), list of newly created walls, and history of wall generations
+) -> ExternalWallResult:
+    cells = [
+        [
+            # Change float if you want to change total distribution of glass
+            WallColumn.GLASS if random.random() < 0.25 else WallColumn.WOOD
+            for _ in range(span)
+        ]
+        for _ in range(height)
+    ]
+    history = [([row[:] for row in cells], None)]
+
+    # Main loop for cellular automata of glass blocks (range = # of generations)
+    for round_number in range(1, 11):
+        next_cells = [[WallColumn.WOOD for _ in range(span)] for _ in range(height)]
+        for y in range(height):
+            for offset in range(span):
+                neighbors = ((0, 0), (1, 0), (-1, 0), (0, 1), (0, -1))
+                total = sum(
+                    cells[y + dy][offset + dx]
+                    for dx, dy in neighbors
+                    # Check adjacent neighbor of current block, and if neighbor + current height of block is higher than set building height, then skip
+                    if 0 <= y + dy < height and 0 <= offset + dx < span
+                )
+                next_cells[y][offset] = (
+                    WallColumn.GLASS if total in (2, 3) else WallColumn.WOOD
+                )
+        changed_cells = sum(
+            cells[y][offset] != next_cells[y][offset]
+            for y in range(height)
+            for offset in range(span)
+        )
+        cells = next_cells
+        history.append(([row[:] for row in cells], changed_cells))
+
+    columns = []
+    for offset in range(span):
+        column = WallColumn(height)
+        column.cells = [cells[y][offset] for y in range(height)]
+        columns.append(column)
+    return columns, history
+
+
+def externWallPlacements(building: "Building") -> None:
+    """Generate four cellular-automata walls around a building footprint."""
+    width = building.width
+    length = building.length
+
+    building.wall_columns = {
+        coordinates: column
+        for coordinates, column in building.wall_columns.items()
+        if 0 <= coordinates[0] < width and 0 <= coordinates[1] < length
+    }
+
+    # obtain arrays of the wall, as well as another array for past wall generations
+    north_wall, north_history = _generate_external_wall(building.height + 1, width + 2)
+    south_wall, south_history = _generate_external_wall(building.height + 1, width)
+    west_wall, west_history = _generate_external_wall(building.height + 1, length + 1)
+    east_wall, east_history = _generate_external_wall(building.height + 1, length + 1)
+    building.wall_generation_history = {
+        "North": north_history,
+        "South": south_history,
+        "West": west_history,
+        "East": east_history,
+    }
+
+    for offset, column in enumerate(north_wall):
+        building.wall_columns[(offset - 1, -1)] = column
+    for offset, column in enumerate(south_wall):
+        building.wall_columns[(offset, length)] = column
+    for offset, column in enumerate(west_wall):
+        building.wall_columns[(-1, offset)] = column
+    for offset, column in enumerate(east_wall):
+        building.wall_columns[(width, offset)] = column
+
+    # If door is already implemented, then continue
+    if building.external_door is not None:
+        inside, outside = building.external_door
+    # Randomly choose which side to install a door
+    else:
+        side, offset = random.choice(
+            [("north", x) for x in range(width)]
+            + [("south", x) for x in range(width)]
+            + [("west", z) for z in range(length)]
+            + [("east", z) for z in range(length)]
+        )
+        if side == "north":
+            inside, outside = (offset, 0), (offset, -1)
+        elif side == "south":
+            inside, outside = (offset, length - 1), (offset, length)
+        elif side == "west":
+            inside, outside = (0, offset), (-1, offset)
+        else:
+            inside, outside = (width - 1, offset), (width, offset)
+
+    building.external_door = (inside, outside)
+
+
 def is_room(value) -> bool:
     return isinstance(value, int) and value >= 0
 
@@ -254,20 +366,21 @@ def get_door_candidates(floorplan: "Floorplan"):
                 and any(value == floorplan.WALL for value in side_walls)
             ):
                 candidates.append(((x, z), above, below))
+                
 
-            # Door dividing rooms diagonally: northwest/southeast.
-            northwest = floorplan.get_cell(x - 1, z - 1)
-            southeast = floorplan.get_cell(x + 1, z + 1)
+            # # Door dividing rooms diagonally: northwest/southeast.
+            # northwest = floorplan.get_cell(x - 1, z - 1)
+            # southeast = floorplan.get_cell(x + 1, z + 1)
 
-            if is_room(northwest) and is_room(southeast) and northwest != southeast:
-                candidates.append(((x, z), northwest, southeast))
+            # if is_room(northwest) and is_room(southeast) and northwest != southeast:
+            #     candidates.append(((x, z), northwest, southeast))
 
-            # Door dividing rooms diagonally: northeast/southwest.
-            northeast = floorplan.get_cell(x + 1, z - 1)
-            southwest = floorplan.get_cell(x - 1, z + 1)
+            # # Door dividing rooms diagonally: northeast/southwest.
+            # northeast = floorplan.get_cell(x + 1, z - 1)
+            # southwest = floorplan.get_cell(x - 1, z + 1)
 
-            if is_room(northeast) and is_room(southwest) and northeast != southwest:
-                candidates.append(((x, z), northeast, southwest))
+            # if is_room(northeast) and is_room(southwest) and northeast != southwest:
+            #     candidates.append(((x, z), northeast, southwest))
 
     return candidates
 
