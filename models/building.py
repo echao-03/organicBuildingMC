@@ -21,3 +21,11 @@ class Building:
         self.floorplan = Floorplan(width, length)
         # Store the wall as columns, since rooms are not rectangular.
         self.wall_columns: dict[tuple[int, int], WallColumn] = {}
+        # Initalize dictionary for wall generation history for debug
+        # key: str containing direction of wall ie. "north", "south", etc.
+        # value: tuple of (current wall values where each element contains 0 or 1, integer of amt of cells that were changed)
+        self.wall_generation_history: dict[
+            str, list[tuple[list[list[int]], int | None]]
+        ] = {}
+        # Obtain coordinates of the external door, and the coordinates outside to determine where the door faces 
+        self.external_door: tuple[tuple[int, int], tuple[int, int]] | None = None
